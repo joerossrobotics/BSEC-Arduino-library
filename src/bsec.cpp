@@ -38,8 +38,10 @@
 
 #include "bsec.h"
 
-TwoWire* Bsec::wireObj = NULL;
-SPIClass* Bsec::spiObj = NULL;
+#if defined(ARDUINO)
+	TwoWire* Bsec::wireObj = NULL;
+	SPIClass* Bsec::spiObj = NULL;
+#endif
 
 /**
  * @brief Constructor
@@ -53,7 +55,7 @@ Bsec::Bsec()
 /**
  * @brief Function to initialize the BSEC library and the BME68x sensor
  */
-void Bsec::begin(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write, bme68x_delay_us_fptr_t idleTask, void *intfPtr)
+void Bsec::begin(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write, bme68x_delay_us_fptr_t idleTask, bme68x_time_us_fptr_t time, void *intfPtr)
 {
 	_bme68x.intf = intf;
 	_bme68x.read = read;
@@ -62,9 +64,12 @@ void Bsec::begin(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t 
 	_bme68x.intf_ptr = intfPtr;
 	_bme68x.amb_temp = 25;
 
+	_time = time;
+
 	beginCommon();
 }
 
+#if defined(ARDUINO)
 /**
  * @brief Function to initialize the BSEC library and the BME68x sensor
  */
@@ -101,6 +106,7 @@ void Bsec::begin(uint8_t chipSelect, SPIClass &spi)
 
 	return beginCommon();
 }
+#endif
 
 /**
  * @brief Common code for the begin function
@@ -454,7 +460,11 @@ void Bsec::zeroInputs(void)
  */
 int64_t Bsec::getTimeMs(void)
 {
-	int64_t timeMs = millis();
+	#if defined(ARDUINO)
+		int64_t timeMs = millis();
+	#else
+		int64_t timeMs = _time();
+	#endif
 
 	if (lastTime > timeMs) { // An overflow occurred
 		millisOverflowCounter++;
@@ -473,9 +483,14 @@ void Bsec::delay_us(uint32_t period, void *intfPtr)
 	(void) intfPtr;
 	// Wait for a period amount of ms
 	// The system may simply idle, sleep or even perform background tasks
-	delay(period/1000);
+	#if defined(ARDUINO)
+		delay(period/1000);
+	#else
+		_bme68x.delay_us(period, _bme68x.intf_ptr);
+	#endif
 }
 
+#if defined(ARDUINO)
 /**
  @brief Callback function for reading registers over I2C
  */
@@ -566,6 +581,7 @@ int8_t Bsec::spiWrite(uint8_t regAddr, const uint8_t *regData, uint32_t length, 
 
 	return rslt;
 }
+#endif
 
 /**
  * @brief Function to set the Temperature, Pressure and Humidity over-sampling

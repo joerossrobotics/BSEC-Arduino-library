@@ -40,15 +40,23 @@
 #define BSEC_CLASS_H
 
 /* Includes */
-#include "Arduino.h"
-#include "Wire.h"
-#include "SPI.h"
+#if defined(ARDUINO)
+	#include "Arduino.h"
+	#include "Wire.h"
+	#include "SPI.h"
+#endif
+
 #include "inc/bsec_datatypes.h"
 #include "inc/bsec_interface.h"
 #include "bme68x/bme68x.h"
 
 #define BME68X_ERROR            INT8_C(-1)
 #define BME68X_WARNING          INT8_C(1)
+
+/*!
+ * @brief Millis function pointer
+ */
+typedef uint64_t (*bme68x_time_us_fptr_t)();
 
 /* BSEC class definition */
 class Bsec
@@ -63,8 +71,10 @@ public:
 	      staticIaq, co2Equivalent, breathVocEquivalent, compGasValue, gasPercentage;
 	uint8_t iaqAccuracy, staticIaqAccuracy, co2Accuracy, breathVocAccuracy, compGasAccuracy, gasPercentageAccuracy;
 	int64_t outputTimestamp;	// Timestamp in ms of the output
-	static TwoWire *wireObj;
-	static SPIClass *spiObj;
+	#if defined(ARDUINO)
+		static TwoWire *wireObj;
+		static SPIClass *spiObj;
+	#endif
 	struct bme68x_conf conf;
 	struct bme68x_heatr_conf heatrConf;
 
@@ -83,21 +93,23 @@ public:
      * @param idleTask 	: Delay or Idle function
      * @param intfPtr 	: Pointer to the interface descriptor
 	 */
-	void begin(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write, bme68x_delay_us_fptr_t idleTask, void *intfPtr);
+	void begin(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write, bme68x_delay_us_fptr_t idleTask, bme68x_time_us_fptr_t time, void *intfPtr);
 	
-	/**
-	 * @brief Function to initialize the BSEC library and the BME68x sensor
-	 * @param i2cAddr	: I2C address
-	 * @param i2c		: Pointer to the TwoWire object
-	 */
-	void begin(uint8_t i2cAddr, TwoWire &i2c);
-	
-	/**
-	 * @brief Function to initialize the BSEC library and the BME68x sensor
-	 * @param chipSelect	: SPI chip select
-	 * @param spi			: Pointer to the SPIClass object
-	 */
-	void begin(uint8_t chipSelect, SPIClass &spi);
+	#if defined(ARDUINO)
+		/**
+		 * @brief Function to initialize the BSEC library and the BME68x sensor
+		 * @param i2cAddr	: I2C address
+		 * @param i2c		: Pointer to the TwoWire object
+		 */
+		void begin(uint8_t i2cAddr, TwoWire &i2c);
+		
+		/**
+		 * @brief Function to initialize the BSEC library and the BME68x sensor
+		 * @param chipSelect	: SPI chip select
+		 * @param spi			: Pointer to the SPIClass object
+		 */
+		void begin(uint8_t chipSelect, SPIClass &spi);
+	#endif
 
 	/**
 	 * @brief Function that sets the desired sensors and the sample rates
@@ -151,7 +163,7 @@ public:
 	* @param period	: Period of time in us
 	* @param intfPtr: Pointer to the interface descriptor
 	*/
-	static void delay_us(uint32_t period, void *intfPtr);
+	void delay_us(uint32_t period, void *intfPtr);
 
 	/**
 	* @brief Callback function for reading registers over I2C
@@ -212,6 +224,7 @@ private:
 	uint32_t millisOverflowCounter;
 	uint32_t lastTime;
 	uint8_t nFields;
+	bme68x_time_us_fptr_t _time;
 
 	/* Private APIs */
 	/**
